@@ -86,7 +86,7 @@
             .pixel-font { font-size: 0.75rem !important; }
             body { padding: 0.5rem; }
             .glass-hud { padding: 0.75rem !important; }
-            .node-btn { width: 24px; height: 24px; }
+            /* Keep node-btn at 30px minimum to ensure 44px touch target with padding */
         }
 
         @media (max-width: 480px) {
@@ -148,13 +148,13 @@
                 <div id="map-container" class="relative w-full h-full">
                     <!-- NODE: 7 STARS -->
                     <div id="node-stars" class="absolute top-[20%] left-[15%] text-center">
-                        <div class="node-btn mx-auto pulse" onclick="location.href='/the-mystery-of-the-seven-stars'" role="button" aria-label="The Mystery of the Seven Stars"></div>
+                        <div class="node-btn mx-auto" onclick="location.href='/the-mystery-of-the-seven-stars'" role="button" aria-label="The Mystery of the Seven Stars"></div>
                         <p class="pixel-font text-[6px] mt-3 opacity-60">7_STARS</p>
                     </div>
 
                     <!-- NODE: GRACE PROJECT -->
                     <div id="node-grace" class="absolute bottom-[15%] right-[10%] text-center">
-                        <div class="node-btn mx-auto pulse" onclick="location.href='/grace-project'" role="button" aria-label="Grace Project"></div>
+                        <div class="node-btn mx-auto" onclick="location.href='/grace-project'" role="button" aria-label="Grace Project"></div>
                         <p class="pixel-font text-[6px] mt-3 opacity-60">GRACE_PROJECT</p>
                     </div>
 
@@ -202,8 +202,7 @@
                 </div>
                 <div class="space-y-1 text-lg border-t border-green-900 pt-3 text-xs sm:text-sm">
                     <div class="flex justify-between"><span>LVL:</span> <span class="text-white">12</span></div>
-                    <div class="flex justify-between"><span>EXP:</span> <span class="text-green-500">4500</span></div>
-                    <div class="flex justify-between"><span>XP:</span> <span class="text-white">4500</span></div>
+                    <div class="flex justify-between"><span>EXPERIENCE:</span> <span class="text-green-500">4500</span></div>
                     <div class="flex justify-between"><span>HP:</span> <span class="text-red-500">100/100</span></div>
                 </div>
             </div>
@@ -233,7 +232,8 @@
 
     <!-- Add touch event listeners for mobile interaction -->
     <script defer>
-        // Touch handling for better mobile UX
+        // Enable passive touch listener to improve scrolling performance
+        // This also enables :active pseudo-class on iOS devices
         document.addEventListener('touchstart', function() {}, { passive: true });
         
         // Debounce function to prevent excessive redraws
