@@ -78,7 +78,7 @@
 <body class="p-3 md:p-6 lg:p-8">
     <div class="crt-overlay"></div>
 
-    <div class="max-w-7xl mx-auto flex flex-col lg:row gap-6">
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
         
         <!-- OS CORE: OVERWORLD -->
         <div class="flex-grow flex flex-col gap-6">
@@ -218,6 +218,13 @@
             container.appendChild(line);
         }
 
+        function renderMapConnections() {
+            const container = document.getElementById('map-container');
+            container.querySelectorAll('.map-line').forEach(line => line.remove());
+            connectNodes('node-stars', 'node-village');
+            connectNodes('node-village', 'node-archives');
+        }
+
         // --- SYSTEM LOG LOGIC ---
         function addLog(msg) {
             const log = document.getElementById('log-content');
@@ -267,12 +274,12 @@
         // --- INITIALIZATION ---
         window.onload = () => {
             setTimeout(() => {
-                connectNodes('node-stars', 'node-village');
-                connectNodes('node-village', 'node-archives');
+                renderMapConnections();
                 addLog("Map pathing visualized.");
             }, 500);
         };
+
+        window.addEventListener('resize', renderMapConnections);
     </script>
 </body>
 </html>
-
