@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="true">
+    <meta name="apple-mobile-web-app-capable" content="true">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#050505">
+    <title>Nexus Arcade OS | NicholaiMM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --arcade-green: #00ff41;
+            --arcade-bg: #050505;
+            --hud-bg: rgba(0, 20, 0, 0.85);
+            --glow: 0 0 10px var(--arcade-green), 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            background-color: var(--arcade-bg);
+            color: var(--arcade-green);
+            font-family: 'VT323', monospace;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at center, #0a1f0a 0%, #050505 100%);
+            will-change: background;
+        }
+
+        .pixel-font { font-family: 'Press Start 2P', cursive; }
+
+        /* CRT SCANLINE & FLICKER - optimized for mobile */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%; pointer-events: none; z-index: 100;
+            opacity: 0.2;
+            will-change: opacity;
+        }
+
+        .glass-hud {
+            background: var(--hud-bg);
+            border: 2px solid var(--arcade-green);
+            box-shadow: var(--glow);
+            backdrop-filter: blur(8px);
+        }
+
+        /* NODE ANIMATIONS */
+        .node-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: #fff; border: 3px solid var(--arcade-green);
+            cursor: pointer; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; z-index: 10;
+            transform: translateZ(0);
+            will-change: transform;
+        }
+        .node-btn:hover { transform: scale(1.3); box-shadow: 0 0 25px #fff; }
+        .node-btn:active { transform: scale(1.1); }
+        .node-btn.locked { filter: grayscale(1); opacity: 0.3; cursor: not-allowed; }
+        .node-btn.pulse { animation: node-pulse 2s infinite; }
+
+        @keyframes node-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--arcade-green); }
+            50% { transform: scale(1.1); box-shadow: 0 0 15px 5px var(--arcade-green); }
+        }
+
+        /* MAP LINES with GPU acceleration */
+        .map-line {
+            position: absolute; top: 0; left: 0; background: var(--arcade-green);
+            height: 2px; transform-origin: 0 0; z-index: 1; opacity: 0.6;
+            will-change: width, transform;
+        }
+
+        /* Responsive improvements for mobile */
+        @media (max-width: 640px) {
+            .crt-overlay { opacity: 0.1; }
+            .pixel-font { font-size: 0.75rem !important; }
+            body { padding: 0.5rem; }
+            .glass-hud { padding: 0.75rem !important; }
+            .node-btn { width: 24px; height: 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .glass-hud { padding: 0.5rem !important; }
+            body { font-size: 11px; }
+        }
+
+        /* Touch optimizations */
+        .node-btn, button {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* Optimize scrolling */
+        #log-content {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Reduce motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        ::-webkit-scrollbar { width: 6px; background: var(--arcade-bg); }
+        ::-webkit-scrollbar-track { background: var(--arcade-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--arcade-green); }
+    </style>
+</head>
+<body class="p-3 md:p-6 lg:p-8">
+    <div class="crt-overlay"></div>
+
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
+        
+        <!-- OS CORE: OVERWORLD -->
+        <div class="flex-grow flex flex-col gap-6">
+            <header class="glass-hud p-4 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                    <h1 class="pixel-font text-[10px] md:text-sm tracking-tighter">NEXUS_OS // SYSTEM_READY</h1>
+                </div>
+                <nav class="flex gap-2 flex-wrap">
+                    <button class="pixel-font text-[8px] border border-green-500 px-3 py-1 active-tab touch-target">OS_HUB</button>
+                    <button class="pixel-font text-[8px] border border-green-500 px-3 py-1 hover:bg-green-500 hover:text-black transition-all touch-target" onclick="location.href='/amazing-grace'">AGHL_PORTAL</button>
+                </nav>
+            </header>
+
+            <!-- DYNAMIC MAP ENGINE -->
+            <div class="glass-hud h-[450px] relative overflow-hidden bg-black group" id="viewport">
+                <!-- GRID BACKGROUND -->
+                <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(var(--arcade-green) 1px, transparent 1px), linear-gradient(90deg, var(--arcade-green) 1px, transparent 1px); background-size: 40px 40px;"></div>
+                
+                <div id="map-container" class="relative w-full h-full">
+                    <!-- NODE: 7 STARS -->
+                    <div id="node-stars" class="absolute top-[20%] left-[15%] text-center">
+                        <div class="node-btn mx-auto pulse" onclick="location.href='/the-mystery-of-the-seven-stars'" role="button" aria-label="The Mystery of the Seven Stars"></div>
+                        <p class="pixel-font text-[6px] mt-3 opacity-60">7_STARS</p>
+                    </div>
+
+                    <!-- NODE: GRACE PROJECT -->
+                    <div id="node-grace" class="absolute bottom-[15%] right-[10%] text-center">
+                        <div class="node-btn mx-auto pulse" onclick="location.href='/grace-project'" role="button" aria-label="Grace Project"></div>
+                        <p class="pixel-font text-[6px] mt-3 opacity-60">GRACE_PROJECT</p>
+                    </div>
+
+                    <!-- NODE: MATRIX -->
+                    <div id="node-matrix" class="absolute top-[40%] right-[25%] text-center">
+                        <div class="node-btn mx-auto locked" role="button" aria-label="Matrix of Consciousness - Locked"></div>
+                        <p class="pixel-font text-[6px] mt-3 opacity-30">MATRIX [LOCKED]</p>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-4 left-4 pointer-events-none text-xs md:text-sm">
+                    <p class="text-xs terminal opacity-50">LAT: 14.5995° N | LON: 120.9842° E</p>
+                </div>
+            </div>
+
+            <!-- INTERACTIVE MYSTERY METER -->
+            <div class="glass-hud p-5">
+                <div class="flex justify-between items-center mb-3 flex-wrap">
+                    <span class="pixel-font text-[10px] flex items-center gap-2">
+                        <span class="inline-block w-2 h-2 bg-yellow-400"></span> 
+                        MYSTERY_DECRYPTION_PROGRESS
+                    </span>
+                    <span class="pixel-font text-[10px]" id="meter-text">65%</span>
+                </div>
+                <div class="w-full h-5 bg-black border border-green-900 rounded-sm p-0.5 overflow-hidden">
+                    <div id="mystery-bar" class="h-full bg-gradient-to-r from-green-900 via-green-500 to-white transition-all duration-1000" style="width: 65%"></div>
+                </div>
+                <div class="mt-3 flex flex-col sm:flex-row justify-between text-[10px] terminal uppercase opacity-60 gap-2">
+                    <span>Searching for fragments...</span>
+                    <button onclick="boostProgress()" class="hover:text-white underline cursor-pointer touch-target">Run_Deep_Scan.exe</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HUD: TELEMETRY SIDEBAR -->
+        <aside class="w-full lg:w-80 flex flex-col gap-6">
+            <!-- PLAYER PROFILE -->
+            <div class="glass-hud p-4">
+                <div class="flex items-center gap-4 mb-4 flex-wrap">
+                    <div class="w-12 h-12 bg-green-500 rounded border-2 border-white flex items-center justify-center text-black pixel-font flex-shrink-0">N</div>
+                    <div>
+                        <p class="pixel-font text-[10px] text-white">NicholaiMM</p>
+                        <p class="text-xs opacity-60">RANK: ARCHITECT</p>
+                    </div>
+                </div>
+                <div class="space-y-1 text-lg border-t border-green-900 pt-3 text-xs sm:text-sm">
+                    <div class="flex justify-between"><span>LVL:</span> <span class="text-white">12</span></div>
+                    <div class="flex justify-between"><span>EXP:</span> <span class="text-green-500">4500</span></div>
+                    <div class="flex justify-between"><span>XP:</span> <span class="text-white">4500</span></div>
+                    <div class="flex justify-between"><span>HP:</span> <span class="text-red-500">100/100</span></div>
+                </div>
+            </div>
+
+            <!-- LOG OUTPUT -->
+            <div class="glass-hud p-4 flex-grow overflow-hidden flex flex-col min-h-[200px]">
+                <h2 class="pixel-font text-[10px] border-b border-green-900 pb-2 mb-3">SYSTEM_LOG</h2>
+                <div id="log-content" class="text-xs terminal space-y-1 opacity-80 overflow-y-auto">
+                    <p>> initializing nexus os...</p>
+                    <p>> connection established.</p>
+                    <p>> protocol 7_stars: active.</p>
+                </div>
+            </div>
+
+            <!-- BADGE CACHE -->
+            <div class="glass-hud p-4">
+                <h2 class="pixel-font text-[10px] border-b border-green-900 pb-2 mb-3">UNLOCKABLES</h2>
+                <div class="grid grid-cols-4 gap-2">
+                    <div class="w-12 h-12 bg-yellow-500 rounded border-2 border-white flex items-center justify-center text-black pixel-font text-xs">⭐</div>
+                    <div class="w-12 h-12 bg-blue-500 rounded border-2 border-white flex items-center justify-center text-black pixel-font text-xs">💎</div>
+                    <div class="w-12 h-12 bg-purple-500 rounded border-2 border-white flex items-center justify-center text-black pixel-font text-xs opacity-30">🔒</div>
+                    <div class="w-12 h-12 bg-red-500 rounded border-2 border-white flex items-center justify-center text-black pixel-font text-xs opacity-30">🔒</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Add touch event listeners for mobile interaction -->
+    <script defer>
+        // Touch handling for better mobile UX
+        document.addEventListener('touchstart', function() {}, { passive: true });
+        
+        // Debounce function to prevent excessive redraws
+        function debounce(func, delay) {
+            let timeoutId;
+            return function(...args) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func(...args), delay);
+            };
+        }
+
+        // Handle window resize with debounce
+        window.addEventListener('resize', debounce(function() {
+            // Trigger layout recalculation if needed
+            redrawMapLines();
+        }, 250), { passive: true });
+
+        // Draw connection lines between nodes (only when visible)
+        function redrawMapLines() {
+            const container = document.getElementById('map-container');
+            const existingLines = container.querySelectorAll('.map-line');
+            existingLines.forEach(line => line.remove());
+
+            // Only draw lines if viewport is visible
+            if (!container.offsetHeight) return;
+
+            const nodes = [
+                { el: document.getElementById('node-stars'), id: 'stars' },
+                { el: document.getElementById('node-grace'), id: 'grace' },
+                { el: document.getElementById('node-matrix'), id: 'matrix' }
+            ];
+
+            const connections = [
+                ['node-stars', 'node-matrix'],
+                ['node-matrix', 'node-grace']
+            ];
+
+            connections.forEach(([start, end]) => {
+                const startEl = document.getElementById(start);
+                const endEl = document.getElementById(end);
+                if (startEl && endEl) drawLine(startEl, endEl);
+            });
+        }
+
+        function drawLine(start, end) {
+            const container = document.getElementById('map-container');
+            
+            const line = document.createElement('div');
+            line.className = 'map-line';
+            
+            const startRect = start.getBoundingClientRect();
+            const endRect = end.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            const x1 = (startRect.left + startRect.width / 2) - containerRect.left;
+            const y1 = (startRect.top + startRect.height / 2) - containerRect.top;
+            const x2 = (endRect.left + endRect.width / 2) - containerRect.left;
+            const y2 = (endRect.top + endRect.height / 2) - containerRect.top;
+
+            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+            line.style.width = `${length}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            
+            container.appendChild(line);
+        }
+
+        // Progress bar animation with requestAnimationFrame for better performance
+        function boostProgress() {
+            const bar = document.getElementById('mystery-bar');
+            const text = document.getElementById('meter-text');
+            let currentWidth = parseInt(bar.style.width);
+            
+            if (currentWidth < 100) {
+                const increment = Math.min(15, 100 - currentWidth);
+                currentWidth += increment;
+                bar.style.width = `${currentWidth}%`;
+                text.textContent = `${currentWidth}%`;
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            redrawMapLines();
+        }, { passive: true });
+
+        // Use IntersectionObserver to lazy-load animations
+        if ('IntersectionObserver' in window) {
+            const nodes = document.querySelectorAll('.node-btn');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('pulse');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+            
+            nodes.forEach(node => observer.observe(node));
+        }
+    </script>
+</body>
+</html>

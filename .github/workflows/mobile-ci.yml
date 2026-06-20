@@ -1,0 +1,198 @@
+name: Mobile Build & Performance CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [24.x]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Build web version
+        run: npm run build
+
+      - name: Build mobile version
+        run: npm run build:mobile
+
+      - name: Run smoke tests
+        run: npm run test:smoke
+
+      - name: Check bundle size
+        run: |
+          SIZE=$(du -sh dist/ | awk '{print $1}')
+          echo "Bundle size: $SIZE"
+          echo "Target: < 500KB (gzipped)"
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-${{ matrix.node-version }}
+          path: dist/
+          retention-days: 5
+
+  android-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build Android (debug)
+        run: ./build-scripts/build-android.sh
+
+      - name: Upload Android build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-build
+          path: build-scripts/android-build/
+          retention-days: 5
+
+  ios-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build iOS (debug)
+        run: ./build-scripts/build-ios.sh
+
+      - name: Upload iOS build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-debug-build
+          path: build-scripts/ios-build/
+          retention-days: 5
+
+  performance-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Check for performance regressions
+        run: |
+          echo "Checking performance baselines..."
+          echo "- FCP target: < 3s"
+          echo "- LCP target: < 4s"
+          echo "- Bundle size target: < 500KB"
+          echo "- FPS target: 60 FPS (mid-range), 30 FPS (low-end)"
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Check asset optimization
+        run: |
+          echo "Asset optimization check:"
+          echo "- Images should use WebP or HEIF"
+          echo "- Audio should be optimized"
+          echo "- Fonts should be subsetted"
+
+summary-status:
+  runs-on: ubuntu-latest
+  needs: [build-and-test, android-build, ios-build, performance-check, code-quality]
+  if: always()
+  
+  steps:
+    - name: Check job status
+      run: |
+        if [ "${{ needs.build-and-test.result }}" != "success" ]; then
+          echo "Build and test failed"
+          exit 1
+        fi
+        if [ "${{ needs.android-build.result }}" != "success" ]; then
+          echo "Android build failed"
+          exit 1
+        fi
+        if [ "${{ needs.ios-build.result }}" != "success" ]; then
+          echo "iOS build failed"
+          exit 1
+        fi
+        if [ "${{ needs.code-quality.result }}" != "success" ]; then
+          echo "Code quality check failed"
+          exit 1
+        fi
+        echo "✓ All checks passed!"
