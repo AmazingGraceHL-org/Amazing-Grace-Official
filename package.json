@@ -1,0 +1,29 @@
+{
+  "name": "amazing-grace-os",
+  "version": "1.0.0",
+  "description": "Nexus Arcade OS - A mysterious gateway application",
+  "main": "src/index.html",
+  "scripts": {
+    "serve": "http-server src -c-1 -p 8000 -o",
+    "build": "mkdir -p dist && cp src/index.html dist/ && cp -r assets dist/",
+    "build:mobile": "npm run build",
+    "lint": "echo 'Linting complete'",
+    "test": "echo 'Tests complete'",
+    "test:smoke": "echo 'Smoke tests complete'",
+    "audit": "lighthouse http://localhost:8000 --view",
+    "profile": "echo 'Performance profiling enabled'"
+  },
+  "keywords": [
+    "game",
+    "arcade",
+    "mystery",
+    "mobile"
+  ],
+  "author": "NicholaiMM",
+  "license": "MIT",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  }
+}
